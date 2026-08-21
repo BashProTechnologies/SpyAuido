@@ -1,0 +1,18 @@
+{
+  "server_url": "ws://46.32.163.90:8000/ws/stream",
+  "device_id": "baby_room_pc_01",
+  "device_token": "secure_token_baby_room_98765",
+  "sample_rate": 16000,
+  "channels": 1,
+  "frame_duration_ms": 20,
+  "audio_device_index": null,
+  "mode": "continuous",
+  "vad_threshold": 35.0,
+  "min_speech_duration_sec": 0.3,
+  "cooldown_sec": 2.0,
+  "autostart": true,
+  "start_minimized": false,
+  "show_tray_icon": false,
+  "capture_gain": 3.5,
+  "enable_agc": false
+}

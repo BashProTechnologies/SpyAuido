@@ -1,0 +1,14 @@
+{
+  "server_url": "ws://46.32.163.90:8000/ws/stream",
+  "device_id": "parent_room_pc_01",
+  "device_token": "secure_token_parent_room_43210",
+  "sample_rate": 16000,
+  "channels": 1,
+  "volume": 0.8976744186046511,
+  "is_muted": false,
+  "listen_enabled": true,
+  "voice_detection_alert": true,
+  "alert_threshold": 47.77777777777778,
+  "playback_gain": 2.5,
+  "alert_cooldown_sec": 10.0
+}
