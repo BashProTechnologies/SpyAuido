@@ -3,7 +3,7 @@ import logging
 import json
 import time
 import threading
-from typing import Callable, Optional
+from typing import Callable, Optional, List, Dict
 import websockets
 from websockets.exceptions import ConnectionClosed, ConnectionClosedError, ConnectionClosedOK
 
@@ -12,9 +12,8 @@ logger = logging.getLogger("parent.ws_client")
 
 class ParentWebSocketClient:
     """
-    Robust WebSocket Client for Parent PC.
-    Receives audio frames + status from server.
-    Does NOT send pings - server sends heartbeats for keepalive.
+    Robust Multi-Agent WebSocket Client for Parent / Main Dashboard.
+    Receives audio frames from selected agent + real-time roster of all agents.
     """
     def __init__(
         self,
@@ -23,6 +22,7 @@ class ParentWebSocketClient:
         device_token: str,
         on_audio_frame: Optional[Callable[[bytes], None]] = None,
         on_status_update: Optional[Callable[[dict], None]] = None,
+        on_agent_list_update: Optional[Callable[[List[Dict]], None]] = None,
         on_latency_update: Optional[Callable[[float], None]] = None
     ):
         self.server_url = server_url
@@ -30,7 +30,10 @@ class ParentWebSocketClient:
         self.device_token = device_token
         self.on_audio_frame = on_audio_frame
         self.on_status_update = on_status_update
+        self.on_agent_list_update = on_agent_list_update
         self.on_latency_update = on_latency_update
+
+        self.selected_agent_id: Optional[str] = None
 
         self._ws = None
         self._is_running = False
@@ -53,6 +56,23 @@ class ParentWebSocketClient:
         self._is_running = False
         if self._loop and self._loop.is_running():
             asyncio.run_coroutine_threadsafe(self._close_ws(), self._loop)
+
+    def select_agent(self, agent_id: Optional[str]):
+        """Command server to route audio from chosen agent ID."""
+        self.selected_agent_id = agent_id
+        if self._ws and self._loop and self._loop.is_running():
+            payload = json.dumps({
+                "type": "select_agent",
+                "agent_id": agent_id
+            })
+            asyncio.run_coroutine_threadsafe(self._send_text(payload), self._loop)
+
+    async def _send_text(self, text: str):
+        if self._ws:
+            try:
+                await self._ws.send(text)
+            except Exception as e:
+                logger.debug(f"Send command failed: {e}")
 
     def _run_event_loop(self):
         self._loop = asyncio.new_event_loop()
@@ -96,8 +116,13 @@ class ParentWebSocketClient:
 
                     self._fire_status("connection_state", state="CONNECTED")
 
-                    # Just run the receiver - no ping task needed
-                    # Server sends heartbeats to keep alive
+                    # If an agent was previously selected, re-send selection command
+                    if self.selected_agent_id:
+                        await ws.send(json.dumps({
+                            "type": "select_agent",
+                            "agent_id": self.selected_agent_id
+                        }))
+
                     await self._receiver_loop(ws)
 
                 logger.info("WebSocket connection closed normally")
@@ -118,14 +143,14 @@ class ParentWebSocketClient:
                 backoff = min(self._max_backoff, backoff * 1.5)
 
     async def _receiver_loop(self, ws):
-        """Receive binary audio frames and text messages from server."""
+        """Receive binary audio frames and JSON agent status updates from server."""
         try:
             async for message in ws:
                 if isinstance(message, bytes):
-                    # Audio frame from Baby via Server
+                    # Live PCM Audio frame
                     self._frame_count += 1
                     if self._frame_count == 1:
-                        logger.info("First audio frame received!")
+                        logger.info("First audio frame received from selected agent!")
                     if self.on_audio_frame:
                         self.on_audio_frame(message)
 
@@ -134,29 +159,18 @@ class ParentWebSocketClient:
                         payload = json.loads(message)
                         msg_type = payload.get("type")
 
-                        if msg_type == "pong":
-                            client_time = payload.get("client_time", 0.0)
-                            if client_time > 0:
-                                rtt = (time.time() - client_time) * 1000.0
-                                self.last_rtt_ms = rtt
-                                if self.on_latency_update:
-                                    self.on_latency_update(rtt)
+                        if msg_type in ("agent_list", "heartbeat"):
+                            agents = payload.get("agents", [])
+                            if self.on_agent_list_update:
+                                self.on_agent_list_update(agents)
 
                         elif msg_type == "status":
+                            # Legacy status compatibility
                             baby_online = payload.get("baby_online", False)
-                            logger.info(f"Status update: baby_online={baby_online}")
                             self._fire_status(
                                 "baby_status",
                                 baby_online=baby_online,
                                 baby_device_id=payload.get("baby_device_id")
-                            )
-
-                        elif msg_type == "heartbeat":
-                            # Server keepalive - update baby status
-                            baby_online = payload.get("baby_online", False)
-                            self._fire_status(
-                                "baby_status",
-                                baby_online=baby_online
                             )
 
                     except json.JSONDecodeError:

@@ -1,6 +1,7 @@
 {
   "server_url": "ws://46.32.163.90:8000/ws/stream",
   "device_id": "baby_room_pc_01",
+  "device_name": "Otaq 1",
   "device_token": "secure_token_baby_room_98765",
   "sample_rate": 16000,
   "channels": 1,

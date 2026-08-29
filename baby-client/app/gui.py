@@ -148,6 +148,7 @@ class BabyMonitorApp(ctk.CTk):
         self.ws_client = WebSocketClient(
             server_url=self.config.get("server_url", "ws://127.0.0.1:8000/ws/stream"),
             device_id=self.config.get("device_id", "baby_room_pc_01"),
+            device_name=self.config.get("device_name", "Otaq 1"),
             device_token=self.config.get("device_token", "secure_token_baby_room_98765"),
             on_status_change=self._handle_ws_status_change
         )
@@ -212,7 +213,7 @@ class BabyMonitorApp(ctk.CTk):
     def _open_settings(self):
         dialog = ctk.CTkToplevel(self)
         dialog.title("Settings")
-        dialog.geometry("400x380")
+        dialog.geometry("400x480")
         dialog.grab_set()
 
         lbl_url = ctk.CTkLabel(dialog, text="Server WebSocket URL:")
@@ -221,6 +222,20 @@ class BabyMonitorApp(ctk.CTk):
         entry_url = ctk.CTkEntry(dialog, width=350)
         entry_url.insert(0, self.config.get("server_url", "ws://127.0.0.1:8000/ws/stream"))
         entry_url.pack(padx=20, pady=5)
+
+        lbl_name = ctk.CTkLabel(dialog, text="Agent / Cihaz Adı (Məsələn: Otaq 1, Ofis):")
+        lbl_name.pack(anchor="w", padx=20, pady=(10, 2))
+
+        entry_name = ctk.CTkEntry(dialog, width=350)
+        entry_name.insert(0, self.config.get("device_name", "Otaq 1"))
+        entry_name.pack(padx=20, pady=2)
+
+        lbl_id = ctk.CTkLabel(dialog, text="Device ID (Unikal ID):")
+        lbl_id.pack(anchor="w", padx=20, pady=(8, 2))
+
+        entry_id = ctk.CTkEntry(dialog, width=350)
+        entry_id.insert(0, self.config.get("device_id", "baby_room_pc_01"))
+        entry_id.pack(padx=20, pady=2)
 
         autostart_var = ctk.BooleanVar(value=is_autostart_enabled())
 
@@ -245,9 +260,15 @@ class BabyMonitorApp(ctk.CTk):
 
         def _save_settings():
             new_url = entry_url.get()
+            new_name = entry_name.get().strip() or "Agent 1"
+            new_id = entry_id.get().strip() or "agent_01"
             self.config["server_url"] = new_url
+            self.config["device_name"] = new_name
+            self.config["device_id"] = new_id
             if self.ws_client:
                 self.ws_client.server_url = new_url
+                self.ws_client.device_name = new_name
+                self.ws_client.device_id = new_id
                 self.ws_client.stop()
                 self.ws_client.start()
             new_thresh = slider_thresh.get()

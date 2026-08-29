@@ -20,11 +20,13 @@ class WebSocketClient:
         server_url: str,
         device_id: str,
         device_token: str,
+        device_name: Optional[str] = None,
         on_status_change: Optional[Callable[[str, str], None]] = None
     ):
         self.server_url = server_url
         self.device_id = device_id
         self.device_token = device_token
+        self.device_name = device_name or device_id
         self.on_status_change = on_status_change
 
         self._ws = None
@@ -78,7 +80,9 @@ class WebSocketClient:
         backoff = self._initial_backoff
 
         while self._is_running:
-            url_with_auth = f"{self.server_url}?device_id={self.device_id}&token={self.device_token}"
+            from urllib.parse import quote_plus
+            encoded_name = quote_plus(self.device_name)
+            url_with_auth = f"{self.server_url}?device_id={self.device_id}&token={self.device_token}&device_name={encoded_name}"
 
             if self.on_status_change:
                 self.on_status_change("CONNECTING", "Connecting to VPS...")

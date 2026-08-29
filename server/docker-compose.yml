@@ -1,26 +1,29 @@
 version: '3.8'
 
 services:
-  baby-monitor-server:
+  spyaudio-relay-server:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: baby_monitor_vps_server
-    restart: always
+    container_name: spyaudio_relay_server
+    restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
       - DEBUG=False
       - HOST=0.0.0.0
       - PORT=8000
-      - SECRET_KEY=secure_vps_random_secret_key_change_me
-      - BABY_DEVICE_ID=baby_room_pc_01
+      - SECRET_KEY=secure_vps_random_secret_key_change_me_12345
       - BABY_DEVICE_TOKEN=secure_token_baby_room_98765
-      - PARENT_DEVICE_ID=parent_room_pc_01
       - PARENT_DEVICE_TOKEN=secure_token_parent_room_43210
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
+      interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

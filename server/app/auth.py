@@ -24,19 +24,17 @@ def verify_device_credentials(device_id: str, token: str, client_ip: str) -> Tup
         logger.warning(f"Rejected auth attempt from blocked IP: {client_ip}")
         return False, None
 
-    # Check Baby Device
-    if secrets.compare_digest(device_id, settings.BABY_DEVICE_ID):
-        if secrets.compare_digest(token, settings.BABY_DEVICE_TOKEN):
-            rate_limiter.record_success(client_ip)
-            logger.info(f"Baby Client authenticated successfully: {device_id} from {client_ip}")
-            return True, "baby"
+    # Check Baby / Agent Device (Valid token allows any unique device_id)
+    if secrets.compare_digest(token, settings.BABY_DEVICE_TOKEN):
+        rate_limiter.record_success(client_ip)
+        logger.info(f"Agent Client authenticated successfully: {device_id} from {client_ip}")
+        return True, "baby"
     
-    # Check Parent Device
-    if secrets.compare_digest(device_id, settings.PARENT_DEVICE_ID):
-        if secrets.compare_digest(token, settings.PARENT_DEVICE_TOKEN):
-            rate_limiter.record_success(client_ip)
-            logger.info(f"Parent Client authenticated successfully: {device_id} from {client_ip}")
-            return True, "parent"
+    # Check Parent / Dashboard Device
+    if secrets.compare_digest(token, settings.PARENT_DEVICE_TOKEN):
+        rate_limiter.record_success(client_ip)
+        logger.info(f"Parent Dashboard authenticated successfully: {device_id} from {client_ip}")
+        return True, "parent"
 
     # Failed Auth
     rate_limiter.record_failure(client_ip)
